@@ -1,0 +1,10 @@
+{
+  "name": "nemo-aqua-store",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nemo Aqua Store — finance, GST, inventory & margin analytics dashboard",
+  "scripts": {
+    "dev": "npx serve .",
+    "start": "npx serve ."
+  }
+}

@@ -1,0 +1,63 @@
+rules_version = '2';
+
+// Nemo Aqua Store — Firestore security rules
+// Model: every business owns its own data tree under /stores/{uid}/...
+// where {uid} is the signed-in user's Firebase Auth UID.
+// Nobody can read or write another user's data. No public access.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: is the request from the signed-in owner of this path?
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    // Helper: basic shape guard so a compromised client can't write junk
+    function isNumber(v) { return v is number; }
+
+    // ---- All store data lives under /stores/{uid} ----
+    match /stores/{uid} {
+
+      // The store profile doc itself
+      allow read, write: if isOwner(uid);
+
+      // Expenses: /stores/{uid}/expenses/{expenseId}
+      match /expenses/{expenseId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && isNumber(request.resource.data.amount)
+          && request.resource.data.amount >= 0
+          && request.resource.data.date is string;
+      }
+
+      // Orders: /stores/{uid}/orders/{orderId}
+      match /orders/{orderId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && isNumber(request.resource.data.amount)
+          && request.resource.data.amount >= 0;
+      }
+
+      // Inventory: /stores/{uid}/inventory/{itemId}
+      match /inventory/{itemId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.name is string
+          && isNumber(request.resource.data.qty);
+      }
+
+      // Monthly revenue map, vendor->category memory, settings, backups meta
+      match /meta/{docId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Catch-all for any other sub-collection you add later: still owner-only
+      match /{document=**} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // Everything not explicitly matched above is denied by default.
+  }
+}

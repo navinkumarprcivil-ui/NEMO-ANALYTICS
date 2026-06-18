@@ -1,0 +1,34 @@
+rules_version = '2';
+
+// Nemo Aqua Store — Cloud Storage rules
+// Used for expense bill / invoice attachments.
+// Files live under /stores/{uid}/attachments/...  and are private to the owner.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /stores/{uid}/attachments/{allPaths=**} {
+      // Owner can read their own files
+      allow read: if isOwner(uid);
+
+      // Owner can upload, but only images or PDFs, max 10 MB
+      allow write: if isOwner(uid)
+        && request.resource.size < 10 * 1024 * 1024
+        && (
+          request.resource.contentType.matches('image/.*')
+          || request.resource.contentType == 'application/pdf'
+        );
+
+      allow delete: if isOwner(uid);
+    }
+
+    // Deny everything else
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
