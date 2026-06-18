@@ -1,32 +1,37 @@
 rules_version = '2';
 
 // Nemo Aqua Store — Cloud Storage rules
-// Used for expense bill / invoice attachments.
-// Files live under /stores/{uid}/attachments/...  and are private to the owner.
+// Expense bill / invoice attachments for the shared store at /stores/main.
+// Admin-only. Bootstrap admin hardcoded; additional admins read from Firestore.
 
 service firebase.storage {
   match /b/{bucket}/o {
 
-    function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
+    function signedIn() { return request.auth != null; }
+
+    function isBootstrapAdmin() {
+      return signedIn() && request.auth.uid == 'cI2HmMt6FdR7fO7uUnugH85GeZt2';
     }
 
-    match /stores/{uid}/attachments/{allPaths=**} {
-      // Owner can read their own files
-      allow read: if isOwner(uid);
+    // Cross-service read of the Firestore admins list.
+    function isListedAdmin() {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/stores/main/meta/config)
+        && (request.auth.uid in firestore.get(/databases/(default)/documents/stores/main/meta/config).data.admins);
+    }
 
-      // Owner can upload, but only images or PDFs, max 10 MB
-      allow write: if isOwner(uid)
+    function isAdmin() { return isBootstrapAdmin() || isListedAdmin(); }
+
+    match /stores/main/attachments/{allPaths=**} {
+      allow read, delete: if isAdmin();
+      allow write: if isAdmin()
         && request.resource.size < 10 * 1024 * 1024
         && (
           request.resource.contentType.matches('image/.*')
           || request.resource.contentType == 'application/pdf'
         );
-
-      allow delete: if isOwner(uid);
     }
 
-    // Deny everything else
     match /{allPaths=**} {
       allow read, write: if false;
     }

@@ -1,63 +1,48 @@
 rules_version = '2';
 
 // Nemo Aqua Store — Firestore security rules
-// Model: every business owns its own data tree under /stores/{uid}/...
-// where {uid} is the signed-in user's Firebase Auth UID.
-// Nobody can read or write another user's data. No public access.
+// SHARED-STORE model: there is ONE business store at /stores/main.
+// Both you and your co-admin work on the SAME data (orders, expenses, etc).
+// Access is limited to an admin allowlist.
+//
+// Bootstrap admin (always allowed, hardcoded so you can never lock yourself out):
+//   cI2HmMt6FdR7fO7uUnugH85GeZt2   <-- your Google UID
+//
+// Additional admins are listed in /stores/main/meta/config.admins (an array of
+// UIDs). You add your co-admin's UID from inside the app (Settings), which writes
+// to that doc. The rules read it live via get().
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper: is the request from the signed-in owner of this path?
-    function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
+    function signedIn() {
+      return request.auth != null;
     }
 
-    // Helper: basic shape guard so a compromised client can't write junk
-    function isNumber(v) { return v is number; }
-
-    // ---- All store data lives under /stores/{uid} ----
-    match /stores/{uid} {
-
-      // The store profile doc itself
-      allow read, write: if isOwner(uid);
-
-      // Expenses: /stores/{uid}/expenses/{expenseId}
-      match /expenses/{expenseId} {
-        allow read, delete: if isOwner(uid);
-        allow create, update: if isOwner(uid)
-          && isNumber(request.resource.data.amount)
-          && request.resource.data.amount >= 0
-          && request.resource.data.date is string;
-      }
-
-      // Orders: /stores/{uid}/orders/{orderId}
-      match /orders/{orderId} {
-        allow read, delete: if isOwner(uid);
-        allow create, update: if isOwner(uid)
-          && isNumber(request.resource.data.amount)
-          && request.resource.data.amount >= 0;
-      }
-
-      // Inventory: /stores/{uid}/inventory/{itemId}
-      match /inventory/{itemId} {
-        allow read, delete: if isOwner(uid);
-        allow create, update: if isOwner(uid)
-          && request.resource.data.name is string
-          && isNumber(request.resource.data.qty);
-      }
-
-      // Monthly revenue map, vendor->category memory, settings, backups meta
-      match /meta/{docId} {
-        allow read, write: if isOwner(uid);
-      }
-
-      // Catch-all for any other sub-collection you add later: still owner-only
-      match /{document=**} {
-        allow read, write: if isOwner(uid);
-      }
+    // The one hardcoded super-admin (you). Replace/extend only by editing here.
+    function isBootstrapAdmin() {
+      return signedIn() && request.auth.uid == 'cI2HmMt6FdR7fO7uUnugH85GeZt2';
     }
 
-    // Everything not explicitly matched above is denied by default.
+    // Admins listed in the config doc (added from the app by an existing admin).
+    function configAdmins() {
+      return get(/databases/$(database)/documents/stores/main/meta/config).data.admins;
+    }
+    function isListedAdmin() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/stores/main/meta/config)
+        && (request.auth.uid in configAdmins());
+    }
+
+    function isAdmin() {
+      return isBootstrapAdmin() || isListedAdmin();
+    }
+
+    // All business data lives under /stores/main/** — admins only.
+    match /stores/main/{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // Everything else is denied by default.
   }
 }

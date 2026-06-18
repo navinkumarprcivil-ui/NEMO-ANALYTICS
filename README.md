@@ -107,11 +107,23 @@ the signed-in user's Firebase Auth UID. The rules guarantee:
 > for these rules to work — they rely on `request.auth.uid`. Without auth enabled,
 > every request is denied.
 
-> ⚠️ The current `index.html` still reads/writes the browser's localStorage.
-> Wiring it to Firestore/Storage is a code change — tell me when you've created
-> the Firebase project and I'll connect the app to it.
+> The app is **wired to Firebase**. On load it requires Google sign-in; only
+> admins (you + anyone you add in Settings) can read/write the shared store at
+> `/stores/main`. Data syncs live across all admins and is cached locally for
+> offline viewing.
+
+> **Before sign-in works**, in the Firebase console go to **Authentication →
+> Sign-in method**, enable **Google**, then under **Settings → Authorized
+> domains** add the domain you deploy to (e.g. `your-app.vercel.app` and
+> `your-app.web.app`). `localhost` is allowed by default.
+
+### Adding your co-admin
+1. Send them the deployed URL; they click **Continue with Google** once.
+2. They'll see a “Not authorised” screen showing their **Google UID** — they copy it to you.
+3. You open **Settings → Store admins**, paste their UID, click **Add**.
+4. They reload and now have full access. You can remove a co-admin anytime from the same screen.
 
 ## Important: your data
-Until the app is wired to Firestore, data lives in **your browser**, per
-device/browser, and is **not** synced to the cloud. Use the in-app **monthly
-backup** button to download an Excel copy of everything, and keep those files safe.
+Data is stored in **your Firebase project** and shared live across all admins,
+with a local cache for offline viewing. Use the in-app **monthly backup** button
+to download an Excel copy as an extra safeguard.
