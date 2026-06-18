@@ -1,16 +1,15 @@
 rules_version = '2';
 
 // Nemo Aqua Store — Firestore security rules
-// SHARED-STORE model: there is ONE business store at /stores/main.
-// Both you and your co-admin work on the SAME data (orders, expenses, etc).
-// Access is limited to an admin allowlist.
+// SHARED-STORE model: ONE business store at /stores/main.
+// You and your co-admins all work on the SAME data. Access is allowlisted.
 //
-// Bootstrap admin (always allowed, hardcoded so you can never lock yourself out):
-//   cI2HmMt6FdR7fO7uUnugH85GeZt2   <-- your Google UID
+// Owner (always allowed — matched by EMAIL or UID, never lockable-out):
+//   nemoaquastore@gmail.com
+//   cI2HmMt6FdR7fO7uUnugH85GeZt2
 //
-// Additional admins are listed in /stores/main/meta/config.admins (an array of
-// UIDs). You add your co-admin's UID from inside the app (Settings), which writes
-// to that doc. The rules read it live via get().
+// Extra admins live in /stores/main/meta/config.admins (array of UIDs),
+// added from inside the app (Settings) by the owner.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -19,12 +18,14 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // The one hardcoded super-admin (you). Replace/extend only by editing here.
-    function isBootstrapAdmin() {
-      return signedIn() && request.auth.uid == 'cI2HmMt6FdR7fO7uUnugH85GeZt2';
+    // The permanent owner — by email OR uid.
+    function isOwner() {
+      return signedIn() && (
+        request.auth.token.email == 'nemoaquastore@gmail.com'
+        || request.auth.uid == 'cI2HmMt6FdR7fO7uUnugH85GeZt2'
+      );
     }
 
-    // Admins listed in the config doc (added from the app by an existing admin).
     function configAdmins() {
       return get(/databases/$(database)/documents/stores/main/meta/config).data.admins;
     }
@@ -35,14 +36,13 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isBootstrapAdmin() || isListedAdmin();
+      return isOwner() || isListedAdmin();
     }
 
-    // All business data lives under /stores/main/** — admins only.
     match /stores/main/{document=**} {
       allow read, write: if isAdmin();
     }
 
-    // Everything else is denied by default.
+    // Everything else denied by default.
   }
 }

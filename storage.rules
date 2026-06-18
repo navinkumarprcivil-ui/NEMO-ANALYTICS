@@ -2,25 +2,27 @@ rules_version = '2';
 
 // Nemo Aqua Store — Cloud Storage rules
 // Expense bill / invoice attachments for the shared store at /stores/main.
-// Admin-only. Bootstrap admin hardcoded; additional admins read from Firestore.
+// Owner matched by email OR uid; extra admins read from Firestore.
 
 service firebase.storage {
   match /b/{bucket}/o {
 
     function signedIn() { return request.auth != null; }
 
-    function isBootstrapAdmin() {
-      return signedIn() && request.auth.uid == 'cI2HmMt6FdR7fO7uUnugH85GeZt2';
+    function isOwner() {
+      return signedIn() && (
+        request.auth.token.email == 'nemoaquastore@gmail.com'
+        || request.auth.uid == 'cI2HmMt6FdR7fO7uUnugH85GeZt2'
+      );
     }
 
-    // Cross-service read of the Firestore admins list.
     function isListedAdmin() {
       return signedIn()
         && firestore.exists(/databases/(default)/documents/stores/main/meta/config)
         && (request.auth.uid in firestore.get(/databases/(default)/documents/stores/main/meta/config).data.admins);
     }
 
-    function isAdmin() { return isBootstrapAdmin() || isListedAdmin(); }
+    function isAdmin() { return isOwner() || isListedAdmin(); }
 
     match /stores/main/attachments/{allPaths=**} {
       allow read, delete: if isAdmin();
