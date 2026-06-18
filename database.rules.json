@@ -4,8 +4,8 @@
     ".write": false,
     "stores": {
       "main": {
-        ".read": "auth != null && (auth.token.email == 'nemoaquastore@gmail.com' || auth.uid == 'cI2HmMt6FdR7fO7uUnugH85GeZt2' || root.child('stores/main/meta/config/admins').child(auth.uid).exists())",
-        ".write": "auth != null && (auth.token.email == 'nemoaquastore@gmail.com' || auth.uid == 'cI2HmMt6FdR7fO7uUnugH85GeZt2' || root.child('stores/main/meta/config/admins').child(auth.uid).exists())"
+        ".read": "auth != null && (auth.token.email == 'nemoaquastore@gmail.com' || auth.uid == 'aDMlthwXO9bExE0UDyCmdWBU8cQ2' || root.child('stores/main/meta/config/admins').child(auth.uid).exists())",
+        ".write": "auth != null && (auth.token.email == 'nemoaquastore@gmail.com' || auth.uid == 'aDMlthwXO9bExE0UDyCmdWBU8cQ2' || root.child('stores/main/meta/config/admins').child(auth.uid).exists())"
       }
     }
   }

@@ -12,7 +12,7 @@ service firebase.storage {
     function isOwner() {
       return signedIn() && (
         request.auth.token.email == 'nemoaquastore@gmail.com'
-        || request.auth.uid == 'cI2HmMt6FdR7fO7uUnugH85GeZt2'
+        || request.auth.uid == 'aDMlthwXO9bExE0UDyCmdWBU8cQ2'
       );
     }
 
